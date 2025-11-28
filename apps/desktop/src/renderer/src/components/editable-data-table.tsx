@@ -29,19 +29,8 @@ import {
 import type { ForeignKeyInfo, ColumnInfo, EditContext, ConnectionConfig } from '@data-peek/shared'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@/components/ui/tooltip'
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { EditableCell } from '@/components/editable-cell'
@@ -93,7 +82,12 @@ function getTypeColor(type: string): string {
   if (lower.includes('uuid')) return 'text-purple-400'
   if (lower.includes('varchar') || lower.includes('text') || lower.includes('char'))
     return 'text-green-400'
-  if (lower.includes('int') || lower.includes('numeric') || lower.includes('decimal') || lower.includes('bigint'))
+  if (
+    lower.includes('int') ||
+    lower.includes('numeric') ||
+    lower.includes('decimal') ||
+    lower.includes('bigint')
+  )
     return 'text-blue-400'
   if (lower.includes('timestamp') || lower.includes('date') || lower.includes('time'))
     return 'text-orange-400'
@@ -119,7 +113,9 @@ export function EditableDataTable<TData extends Record<string, unknown>>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [showFilters, setShowFilters] = React.useState(false)
   const [showSqlPreview, setShowSqlPreview] = React.useState(false)
-  const [sqlStatements, setSqlStatements] = React.useState<Array<{ operationId: string; sql: string; type: 'insert' | 'update' | 'delete' }>>([])
+  const [sqlStatements, setSqlStatements] = React.useState<
+    Array<{ operationId: string; sql: string; type: 'insert' | 'update' | 'delete' }>
+  >([])
   const [isCommitting, setIsCommitting] = React.useState(false)
 
   // Edit store
@@ -262,7 +258,8 @@ export function EditableDataTable<TData extends Record<string, unknown>>({
         onChangesCommitted?.()
       } else {
         // Handle errors
-        const errorMsg = response.data?.errors?.[0]?.message || response.error || 'Failed to save changes'
+        const errorMsg =
+          response.data?.errors?.[0]?.message || response.error || 'Failed to save changes'
         console.error('Commit failed:', errorMsg)
         // Could show a toast notification here
       }
@@ -315,7 +312,9 @@ export function EditableDataTable<TData extends Record<string, unknown>>({
                       variant="ghost"
                       size="icon"
                       className="size-6 text-muted-foreground hover:text-red-500"
-                      onClick={() => markRowForDeletion(tabId, rowIndex, originalRow as Record<string, unknown>)}
+                      onClick={() =>
+                        markRowForDeletion(tabId, rowIndex, originalRow as Record<string, unknown>)
+                      }
                     >
                       <Trash2 className="size-3" />
                     </Button>
@@ -345,11 +344,11 @@ export function EditableDataTable<TData extends Record<string, unknown>>({
               >
                 <span>{col.name}</span>
                 {col.isPrimaryKey && (
-                  <span className="ml-1 text-amber-500" title="Primary Key">🔑</span>
+                  <span className="ml-1 text-amber-500" title="Primary Key">
+                    🔑
+                  </span>
                 )}
-                {col.foreignKey && (
-                  <Link2 className="ml-1 size-3 text-blue-400" />
-                )}
+                {col.foreignKey && <Link2 className="ml-1 size-3 text-blue-400" />}
                 <Badge
                   variant="outline"
                   className={`ml-1.5 text-[9px] px-1 py-0 font-mono ${getTypeColor(col.dataType)}`}
@@ -380,8 +379,9 @@ export function EditableDataTable<TData extends Record<string, unknown>>({
           const modifiedValue = getModifiedCellValue(tabId, rowIndex, col.name)
           const displayValue = isModified ? modifiedValue : value
           const originalRow = row.original as Record<string, unknown>
-          const isEditing = tabEdit?.editingCell?.rowIndex === rowIndex &&
-                           tabEdit?.editingCell?.columnName === col.name
+          const isEditing =
+            tabEdit?.editingCell?.rowIndex === rowIndex &&
+            tabEdit?.editingCell?.columnName === col.name
 
           if (isEditMode) {
             return (
@@ -393,9 +393,13 @@ export function EditableDataTable<TData extends Record<string, unknown>>({
                 isModified={isModified}
                 isDeleted={isDeleted}
                 onStartEdit={() => startCellEdit(tabId, rowIndex, col.name)}
-                onSave={(newValue) => updateCellValue(tabId, rowIndex, col.name, newValue, originalRow)}
+                onSave={(newValue) =>
+                  updateCellValue(tabId, rowIndex, col.name, newValue, originalRow)
+                }
                 onCancel={() => cancelCellEdit(tabId)}
-                onRevert={isModified ? () => revertCellChange(tabId, rowIndex, col.name) : undefined}
+                onRevert={
+                  isModified ? () => revertCellChange(tabId, rowIndex, col.name) : undefined
+                }
               />
             )
           }
@@ -546,7 +550,10 @@ export function EditableDataTable<TData extends Record<string, unknown>>({
                     {showFilters && (
                       <TableRow className="hover:bg-transparent border-border/50 bg-muted/80">
                         {headerGroup.headers.map((header) => (
-                          <TableHead key={`filter-${header.id}`} className="h-9 py-1 px-2 bg-muted/80">
+                          <TableHead
+                            key={`filter-${header.id}`}
+                            className="h-9 py-1 px-2 bg-muted/80"
+                          >
                             {header.column.getCanFilter() && header.id !== '_select' ? (
                               <Input
                                 placeholder="Filter..."
@@ -594,40 +601,41 @@ export function EditableDataTable<TData extends Record<string, unknown>>({
                 )}
 
                 {/* New rows (in edit mode) */}
-                {isEditMode && newRows.map((newRow) => (
-                  <TableRow
-                    key={newRow.id}
-                    className="hover:bg-accent/30 border-border/30 bg-green-500/5"
-                  >
-                    {/* Delete button for new row */}
-                    <TableCell className="py-2 text-sm whitespace-nowrap">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-6 text-muted-foreground hover:text-red-500"
-                        onClick={() => removeNewRow(tabId, newRow.id)}
-                      >
-                        <X className="size-3" />
-                      </Button>
-                    </TableCell>
-                    {/* Data cells */}
-                    {columnDefs.map((col) => (
-                      <TableCell key={col.name} className="py-2 text-sm whitespace-nowrap">
-                        <EditableCell
-                          value={newRow.values[col.name]}
-                          originalValue={null}
-                          dataType={col.dataType}
-                          isEditing={false}
-                          isModified={false}
-                          isNewRow={true}
-                          onStartEdit={() => {}}
-                          onSave={(value) => updateNewRowValue(tabId, newRow.id, col.name, value)}
-                          onCancel={() => {}}
-                        />
+                {isEditMode &&
+                  newRows.map((newRow) => (
+                    <TableRow
+                      key={newRow.id}
+                      className="hover:bg-accent/30 border-border/30 bg-green-500/5"
+                    >
+                      {/* Delete button for new row */}
+                      <TableCell className="py-2 text-sm whitespace-nowrap">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 text-muted-foreground hover:text-red-500"
+                          onClick={() => removeNewRow(tabId, newRow.id)}
+                        >
+                          <X className="size-3" />
+                        </Button>
                       </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
+                      {/* Data cells */}
+                      {columnDefs.map((col) => (
+                        <TableCell key={col.name} className="py-2 text-sm whitespace-nowrap">
+                          <EditableCell
+                            value={newRow.values[col.name]}
+                            originalValue={null}
+                            dataType={col.dataType}
+                            isEditing={false}
+                            isModified={false}
+                            isNewRow={true}
+                            onStartEdit={() => {}}
+                            onSave={(value) => updateNewRowValue(tabId, newRow.id, col.name, value)}
+                            onCancel={() => {}}
+                          />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
               </TableBody>
             </table>
           </div>

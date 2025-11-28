@@ -52,7 +52,13 @@ export function TabContainer() {
 
       // Cmd+Option+ArrowRight: Next tab
       // Cmd+Option+ArrowLeft: Previous tab
-      if (isMeta && e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && tabs.length > 1 && activeTabId) {
+      if (
+        isMeta &&
+        e.altKey &&
+        (e.key === 'ArrowRight' || e.key === 'ArrowLeft') &&
+        tabs.length > 1 &&
+        activeTabId
+      ) {
         e.preventDefault()
         const currentIndex = tabs.findIndex((t) => t.id === activeTabId)
         let nextIndex: number

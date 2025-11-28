@@ -11,7 +11,7 @@ import type { SchemaInfo } from '@data-peek/shared'
 
 // Configure Monaco workers for Vite + Electron (avoids CSP issues)
 self.MonacoEnvironment = {
-  getWorker(_: unknown, _label: string) {
+  getWorker() {
     return new editorWorker()
   }
 }
@@ -23,18 +23,95 @@ type EditorType = monaco.editor.IStandaloneCodeEditor
 
 // SQL Keywords for autocomplete
 const SQL_KEYWORDS = [
-  'SELECT', 'FROM', 'WHERE', 'AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN',
-  'IS', 'NULL', 'TRUE', 'FALSE', 'AS', 'ON', 'JOIN', 'LEFT', 'RIGHT',
-  'INNER', 'OUTER', 'FULL', 'CROSS', 'NATURAL', 'USING', 'ORDER', 'BY',
-  'ASC', 'DESC', 'NULLS', 'FIRST', 'LAST', 'GROUP', 'HAVING', 'LIMIT',
-  'OFFSET', 'UNION', 'ALL', 'INTERSECT', 'EXCEPT', 'DISTINCT', 'CASE',
-  'WHEN', 'THEN', 'ELSE', 'END', 'CAST', 'INSERT', 'INTO', 'VALUES',
-  'UPDATE', 'SET', 'DELETE', 'CREATE', 'TABLE', 'INDEX', 'VIEW', 'DROP',
-  'ALTER', 'ADD', 'COLUMN', 'PRIMARY', 'KEY', 'FOREIGN', 'REFERENCES',
-  'CONSTRAINT', 'UNIQUE', 'CHECK', 'DEFAULT', 'CASCADE', 'RESTRICT',
-  'TRUNCATE', 'EXISTS', 'WITH', 'RECURSIVE', 'RETURNING', 'EXPLAIN',
-  'ANALYZE', 'VACUUM', 'BEGIN', 'COMMIT', 'ROLLBACK', 'TRANSACTION',
-  'SAVEPOINT', 'RELEASE', 'TEMPORARY', 'TEMP', 'IF', 'REPLACE', 'IGNORE'
+  'SELECT',
+  'FROM',
+  'WHERE',
+  'AND',
+  'OR',
+  'NOT',
+  'IN',
+  'LIKE',
+  'BETWEEN',
+  'IS',
+  'NULL',
+  'TRUE',
+  'FALSE',
+  'AS',
+  'ON',
+  'JOIN',
+  'LEFT',
+  'RIGHT',
+  'INNER',
+  'OUTER',
+  'FULL',
+  'CROSS',
+  'NATURAL',
+  'USING',
+  'ORDER',
+  'BY',
+  'ASC',
+  'DESC',
+  'NULLS',
+  'FIRST',
+  'LAST',
+  'GROUP',
+  'HAVING',
+  'LIMIT',
+  'OFFSET',
+  'UNION',
+  'ALL',
+  'INTERSECT',
+  'EXCEPT',
+  'DISTINCT',
+  'CASE',
+  'WHEN',
+  'THEN',
+  'ELSE',
+  'END',
+  'CAST',
+  'INSERT',
+  'INTO',
+  'VALUES',
+  'UPDATE',
+  'SET',
+  'DELETE',
+  'CREATE',
+  'TABLE',
+  'INDEX',
+  'VIEW',
+  'DROP',
+  'ALTER',
+  'ADD',
+  'COLUMN',
+  'PRIMARY',
+  'KEY',
+  'FOREIGN',
+  'REFERENCES',
+  'CONSTRAINT',
+  'UNIQUE',
+  'CHECK',
+  'DEFAULT',
+  'CASCADE',
+  'RESTRICT',
+  'TRUNCATE',
+  'EXISTS',
+  'WITH',
+  'RECURSIVE',
+  'RETURNING',
+  'EXPLAIN',
+  'ANALYZE',
+  'VACUUM',
+  'BEGIN',
+  'COMMIT',
+  'ROLLBACK',
+  'TRANSACTION',
+  'SAVEPOINT',
+  'RELEASE',
+  'TEMPORARY',
+  'TEMP',
+  'IF',
+  'REPLACE',
+  'IGNORE'
 ]
 
 // SQL Functions for autocomplete
@@ -45,24 +122,40 @@ const SQL_FUNCTIONS = [
   { name: 'AVG', signature: 'AVG(expression)', description: 'Returns the average value' },
   { name: 'MIN', signature: 'MIN(expression)', description: 'Returns the minimum value' },
   { name: 'MAX', signature: 'MAX(expression)', description: 'Returns the maximum value' },
-  { name: 'GROUP_CONCAT', signature: 'GROUP_CONCAT(expression)', description: 'Concatenates values from a group' },
+  {
+    name: 'GROUP_CONCAT',
+    signature: 'GROUP_CONCAT(expression)',
+    description: 'Concatenates values from a group'
+  },
   // String functions
   { name: 'CONCAT', signature: 'CONCAT(str1, str2, ...)', description: 'Concatenates strings' },
-  { name: 'SUBSTRING', signature: 'SUBSTRING(str, start, length)', description: 'Extracts a substring' },
+  {
+    name: 'SUBSTRING',
+    signature: 'SUBSTRING(str, start, length)',
+    description: 'Extracts a substring'
+  },
   { name: 'UPPER', signature: 'UPPER(str)', description: 'Converts to uppercase' },
   { name: 'LOWER', signature: 'LOWER(str)', description: 'Converts to lowercase' },
   { name: 'TRIM', signature: 'TRIM(str)', description: 'Removes leading/trailing whitespace' },
   { name: 'LENGTH', signature: 'LENGTH(str)', description: 'Returns string length' },
   { name: 'REPLACE', signature: 'REPLACE(str, from, to)', description: 'Replaces occurrences' },
-  { name: 'COALESCE', signature: 'COALESCE(val1, val2, ...)', description: 'Returns first non-null value' },
-  { name: 'NULLIF', signature: 'NULLIF(val1, val2)', description: 'Returns null if values are equal' },
+  {
+    name: 'COALESCE',
+    signature: 'COALESCE(val1, val2, ...)',
+    description: 'Returns first non-null value'
+  },
+  {
+    name: 'NULLIF',
+    signature: 'NULLIF(val1, val2)',
+    description: 'Returns null if values are equal'
+  },
   { name: 'IFNULL', signature: 'IFNULL(val, default)', description: 'Returns default if null' },
   // Date functions
   { name: 'NOW', signature: 'NOW()', description: 'Returns current timestamp' },
   { name: 'DATE', signature: 'DATE(expression)', description: 'Extracts date part' },
   { name: 'TIME', signature: 'TIME(expression)', description: 'Extracts time part' },
   { name: 'DATETIME', signature: 'DATETIME(expression)', description: 'Creates datetime value' },
-  { name: 'STRFTIME', signature: "STRFTIME(format, datetime)", description: 'Formats datetime' },
+  { name: 'STRFTIME', signature: 'STRFTIME(format, datetime)', description: 'Formats datetime' },
   // Math functions
   { name: 'ABS', signature: 'ABS(number)', description: 'Returns absolute value' },
   { name: 'ROUND', signature: 'ROUND(number, decimals)', description: 'Rounds a number' },
@@ -71,29 +164,56 @@ const SQL_FUNCTIONS = [
   { name: 'RANDOM', signature: 'RANDOM()', description: 'Returns random number' },
   // Type functions
   { name: 'TYPEOF', signature: 'TYPEOF(expression)', description: 'Returns the type of value' },
-  { name: 'CAST', signature: 'CAST(expression AS type)', description: 'Converts to specified type' },
+  {
+    name: 'CAST',
+    signature: 'CAST(expression AS type)',
+    description: 'Converts to specified type'
+  },
   // SQLite specific
-  { name: 'PRINTF', signature: "PRINTF(format, ...)", description: 'Formatted string output' },
+  { name: 'PRINTF', signature: 'PRINTF(format, ...)', description: 'Formatted string output' },
   { name: 'INSTR', signature: 'INSTR(str, substr)', description: 'Returns position of substring' },
   { name: 'GLOB', signature: 'GLOB(pattern, str)', description: 'Pattern matching with glob' },
   { name: 'HEX', signature: 'HEX(value)', description: 'Returns hex representation' },
   { name: 'QUOTE', signature: 'QUOTE(value)', description: 'Returns SQL literal' },
   { name: 'ZEROBLOB', signature: 'ZEROBLOB(n)', description: 'Returns n-byte blob of zeros' },
   { name: 'JSON', signature: 'JSON(value)', description: 'Validates and minifies JSON' },
-  { name: 'JSON_EXTRACT', signature: "JSON_EXTRACT(json, path)", description: 'Extracts value from JSON' },
+  {
+    name: 'JSON_EXTRACT',
+    signature: 'JSON_EXTRACT(json, path)',
+    description: 'Extracts value from JSON'
+  },
   { name: 'JSON_ARRAY', signature: 'JSON_ARRAY(...)', description: 'Creates JSON array' },
   { name: 'JSON_OBJECT', signature: 'JSON_OBJECT(...)', description: 'Creates JSON object' }
 ]
 
 // SQL Data types
 const SQL_TYPES = [
-  'INTEGER', 'INT', 'SMALLINT', 'BIGINT', 'TINYINT',
-  'REAL', 'FLOAT', 'DOUBLE', 'DECIMAL', 'NUMERIC',
-  'TEXT', 'VARCHAR', 'CHAR', 'CLOB', 'STRING',
-  'BLOB', 'BINARY', 'VARBINARY',
-  'BOOLEAN', 'BOOL',
-  'DATE', 'TIME', 'DATETIME', 'TIMESTAMP',
-  'JSON', 'UUID'
+  'INTEGER',
+  'INT',
+  'SMALLINT',
+  'BIGINT',
+  'TINYINT',
+  'REAL',
+  'FLOAT',
+  'DOUBLE',
+  'DECIMAL',
+  'NUMERIC',
+  'TEXT',
+  'VARCHAR',
+  'CHAR',
+  'CLOB',
+  'STRING',
+  'BLOB',
+  'BINARY',
+  'VARBINARY',
+  'BOOLEAN',
+  'BOOL',
+  'DATE',
+  'TIME',
+  'DATETIME',
+  'TIMESTAMP',
+  'JSON',
+  'UUID'
 ]
 
 // Register SQL completion provider - returns disposable for cleanup
@@ -124,9 +244,7 @@ const registerSQLCompletionProvider = (
         const tableOrSchemaName = dotMatch[1].toLowerCase()
 
         // Check if it's a schema name - suggest tables
-        const matchingSchema = schemas.find(
-          (s) => s.name.toLowerCase() === tableOrSchemaName
-        )
+        const matchingSchema = schemas.find((s) => s.name.toLowerCase() === tableOrSchemaName)
         if (matchingSchema) {
           matchingSchema.tables.forEach((table) => {
             suggestions.push({
@@ -234,10 +352,12 @@ const registerSQLCompletionProvider = (
             insertText: insertText,
             range,
             detail: `${table.type} (${table.columns.length} columns)`,
-            documentation: table.columns
-              .slice(0, 10)
-              .map((c) => `${c.isPrimaryKey ? '🔑 ' : ''}${c.name}: ${c.dataType}`)
-              .join('\n') + (table.columns.length > 10 ? `\n... and ${table.columns.length - 10} more` : ''),
+            documentation:
+              table.columns
+                .slice(0, 10)
+                .map((c) => `${c.isPrimaryKey ? '🔑 ' : ''}${c.name}: ${c.dataType}`)
+                .join('\n') +
+              (table.columns.length > 10 ? `\n... and ${table.columns.length - 10} more` : ''),
             sortText: '0b' + table.name
           })
         })
@@ -385,20 +505,17 @@ export function SQLEditor({
       onRun?.()
     })
 
-    editor.addCommand(
-      monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF,
-      () => {
-        if (onFormat) {
-          onFormat()
-        } else {
-          // Format in place
-          const currentValue = editor.getValue()
-          const formatted = formatSQL(currentValue)
-          editor.setValue(formatted)
-          onChange?.(formatted)
-        }
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, () => {
+      if (onFormat) {
+        onFormat()
+      } else {
+        // Format in place
+        const currentValue = editor.getValue()
+        const formatted = formatSQL(currentValue)
+        editor.setValue(formatted)
+        onChange?.(formatted)
       }
-    )
+    })
 
     // Configure editor for SQL
     editor.updateOptions({
@@ -491,7 +608,11 @@ export function SQLEditor({
       )}
       style={{
         height: typeof height === 'number' ? `${height}px` : height,
-        minHeight: minHeight ? (typeof minHeight === 'number' ? `${minHeight}px` : minHeight) : undefined
+        minHeight: minHeight
+          ? typeof minHeight === 'number'
+            ? `${minHeight}px`
+            : minHeight
+          : undefined
       }}
     >
       <Editor

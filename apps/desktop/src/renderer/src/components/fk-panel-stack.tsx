@@ -198,10 +198,7 @@ export function FKPanelStack({
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/30 z-40 transition-opacity"
-        onClick={onCloseAll}
-      />
+      <div className="fixed inset-0 bg-black/30 z-40 transition-opacity" onClick={onCloseAll} />
 
       {/* All Panels stacked */}
       {panels.map((panel, index) => (

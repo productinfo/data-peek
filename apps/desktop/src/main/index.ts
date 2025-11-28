@@ -3,7 +3,16 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { Client } from 'pg'
 import icon from '../../resources/icon.png?asset'
-import type { ConnectionConfig, SchemaInfo, TableInfo, ColumnInfo, QueryField, ForeignKeyInfo, EditBatch, EditResult } from '@shared/index'
+import type {
+  ConnectionConfig,
+  SchemaInfo,
+  TableInfo,
+  ColumnInfo,
+  QueryField,
+  ForeignKeyInfo,
+  EditBatch,
+  EditResult
+} from '@shared/index'
 import { buildQuery, validateOperation, buildPreviewSql } from './sql-builder'
 
 // ============================================
@@ -434,74 +443,77 @@ app.whenReady().then(async () => {
   })
 
   // Execute edit operations (INSERT, UPDATE, DELETE)
-  ipcMain.handle('db:execute', async (_, { config, batch }: { config: ConnectionConfig; batch: EditBatch }) => {
-    console.log('[main:db:execute] Received edit batch')
-    console.log('[main:db:execute] Context:', batch.context)
-    console.log('[main:db:execute] Operations count:', batch.operations.length)
+  ipcMain.handle(
+    'db:execute',
+    async (_, { config, batch }: { config: ConnectionConfig; batch: EditBatch }) => {
+      console.log('[main:db:execute] Received edit batch')
+      console.log('[main:db:execute] Context:', batch.context)
+      console.log('[main:db:execute] Operations count:', batch.operations.length)
 
-    const client = new Client(config)
-    const result: EditResult = {
-      success: true,
-      rowsAffected: 0,
-      executedSql: [],
-      errors: []
-    }
-
-    try {
-      await client.connect()
-
-      // Start transaction for atomicity
-      await client.query('BEGIN')
-
-      for (const operation of batch.operations) {
-        // Validate operation
-        const validation = validateOperation(operation)
-        if (!validation.valid) {
-          result.errors!.push({
-            operationId: operation.id,
-            message: validation.error!
-          })
-          continue
-        }
-
-        try {
-          // Build parameterized query
-          const query = buildQuery(operation, batch.context, 'postgresql')
-          const previewSql = buildPreviewSql(operation, batch.context, 'postgresql')
-          result.executedSql.push(previewSql)
-
-          console.log('[main:db:execute] Executing:', query.sql)
-          console.log('[main:db:execute] Params:', query.params)
-
-          const res = await client.query(query.sql, query.params)
-          result.rowsAffected += res.rowCount ?? 0
-        } catch (opError: unknown) {
-          const errorMessage = opError instanceof Error ? opError.message : String(opError)
-          result.errors!.push({
-            operationId: operation.id,
-            message: errorMessage
-          })
-        }
+      const client = new Client(config)
+      const result: EditResult = {
+        success: true,
+        rowsAffected: 0,
+        executedSql: [],
+        errors: []
       }
 
-      // If any errors, rollback; otherwise commit
-      if (result.errors && result.errors.length > 0) {
-        await client.query('ROLLBACK')
-        result.success = false
-      } else {
-        await client.query('COMMIT')
-      }
+      try {
+        await client.connect()
 
-      await client.end()
-      return { success: true, data: result }
-    } catch (error: unknown) {
-      console.error('[main:db:execute] Error:', error)
-      await client.query('ROLLBACK').catch(() => {})
-      await client.end().catch(() => {})
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      return { success: false, error: errorMessage }
+        // Start transaction for atomicity
+        await client.query('BEGIN')
+
+        for (const operation of batch.operations) {
+          // Validate operation
+          const validation = validateOperation(operation)
+          if (!validation.valid) {
+            result.errors!.push({
+              operationId: operation.id,
+              message: validation.error!
+            })
+            continue
+          }
+
+          try {
+            // Build parameterized query
+            const query = buildQuery(operation, batch.context, 'postgresql')
+            const previewSql = buildPreviewSql(operation, batch.context, 'postgresql')
+            result.executedSql.push(previewSql)
+
+            console.log('[main:db:execute] Executing:', query.sql)
+            console.log('[main:db:execute] Params:', query.params)
+
+            const res = await client.query(query.sql, query.params)
+            result.rowsAffected += res.rowCount ?? 0
+          } catch (opError: unknown) {
+            const errorMessage = opError instanceof Error ? opError.message : String(opError)
+            result.errors!.push({
+              operationId: operation.id,
+              message: errorMessage
+            })
+          }
+        }
+
+        // If any errors, rollback; otherwise commit
+        if (result.errors && result.errors.length > 0) {
+          await client.query('ROLLBACK')
+          result.success = false
+        } else {
+          await client.query('COMMIT')
+        }
+
+        await client.end()
+        return { success: true, data: result }
+      } catch (error: unknown) {
+        console.error('[main:db:execute] Error:', error)
+        await client.query('ROLLBACK').catch(() => {})
+        await client.end().catch(() => {})
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        return { success: false, error: errorMessage }
+      }
     }
-  })
+  )
 
   // Preview SQL for edit operations (without executing)
   ipcMain.handle('db:preview-sql', (_, { batch }: { batch: EditBatch }) => {

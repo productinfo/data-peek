@@ -4,12 +4,7 @@ import * as React from 'react'
 import { Check, X, RotateCcw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
 interface EditableCellProps {
@@ -56,7 +51,13 @@ function parseValue(value: string, dataType: string): unknown {
     const parsed = parseInt(value, 10)
     return isNaN(parsed) ? value : parsed
   }
-  if (lower.includes('numeric') || lower.includes('decimal') || lower.includes('float') || lower.includes('double') || lower.includes('real')) {
+  if (
+    lower.includes('numeric') ||
+    lower.includes('decimal') ||
+    lower.includes('float') ||
+    lower.includes('double') ||
+    lower.includes('real')
+  ) {
     const parsed = parseFloat(value)
     return isNaN(parsed) ? value : parsed
   }
@@ -198,11 +199,12 @@ export function EditableCell({
   }
 
   // Display state
-  const displayValue = value === null || value === undefined
-    ? 'NULL'
-    : typeof value === 'object'
-      ? JSON.stringify(value)
-      : String(value)
+  const displayValue =
+    value === null || value === undefined
+      ? 'NULL'
+      : typeof value === 'object'
+        ? JSON.stringify(value)
+        : String(value)
 
   const isNull = value === null || value === undefined
 

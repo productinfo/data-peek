@@ -16,12 +16,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -30,12 +25,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQueryStore, useConnectionStore, useTabStore } from '@/stores'
 import { cn } from '@/lib/utils'
 
@@ -234,10 +224,7 @@ export function QueryHistoryDialog({ open, onOpenChange }: QueryHistoryDialogPro
               <span className="text-xs text-muted-foreground">Filters:</span>
             </div>
 
-            <Select
-              value={filterStatus}
-              onValueChange={(v) => setFilterStatus(v as FilterStatus)}
-            >
+            <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as FilterStatus)}>
               <SelectTrigger className="w-[120px] h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -248,10 +235,7 @@ export function QueryHistoryDialog({ open, onOpenChange }: QueryHistoryDialogPro
               </SelectContent>
             </Select>
 
-            <Select
-              value={filterType}
-              onValueChange={(v) => setFilterType(v as FilterType)}
-            >
+            <Select value={filterType} onValueChange={(v) => setFilterType(v as FilterType)}>
               <SelectTrigger className="w-[120px] h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -266,10 +250,7 @@ export function QueryHistoryDialog({ open, onOpenChange }: QueryHistoryDialogPro
             </Select>
 
             {connections.length > 1 && (
-              <Select
-                value={selectedConnection}
-                onValueChange={setSelectedConnection}
-              >
+              <Select value={selectedConnection} onValueChange={setSelectedConnection}>
                 <SelectTrigger className="w-[150px] h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>

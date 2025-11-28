@@ -2,12 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Database, Search, Plus, Loader2, FolderOpen } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useConnectionStore } from '@/stores'
 import { cn } from '@/lib/utils'

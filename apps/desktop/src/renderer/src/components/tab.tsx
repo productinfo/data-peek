@@ -38,14 +38,9 @@ export function Tab({
   onCloseToRight,
   onCloseAll
 }: TabProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: tab.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: tab.id
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -73,22 +68,22 @@ export function Tab({
           )}
         >
           {/* Pin indicator */}
-          {tab.isPinned && (
-            <Pin className="size-3 shrink-0 text-muted-foreground" />
-          )}
+          {tab.isPinned && <Pin className="size-3 shrink-0 text-muted-foreground" />}
 
           {/* Tab icon */}
           <Icon
             className={cn(
               'size-4 shrink-0',
-              tab.type === 'table-preview' ? 'text-blue-500' : tab.type === 'erd' ? 'text-purple-500' : 'text-muted-foreground'
+              tab.type === 'table-preview'
+                ? 'text-blue-500'
+                : tab.type === 'erd'
+                  ? 'text-purple-500'
+                  : 'text-muted-foreground'
             )}
           />
 
           {/* Dirty indicator */}
-          {isDirty && (
-            <span className="size-2 shrink-0 rounded-full bg-yellow-500" />
-          )}
+          {isDirty && <span className="size-2 shrink-0 rounded-full bg-yellow-500" />}
 
           {/* Title */}
           <span className="truncate text-sm">{tab.title}</span>

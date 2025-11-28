@@ -93,10 +93,7 @@ function RootLayout() {
       </SidebarProvider>
 
       {/* Global Connection Picker */}
-      <ConnectionPicker
-        open={isConnectionPickerOpen}
-        onOpenChange={setIsConnectionPickerOpen}
-      />
+      <ConnectionPicker open={isConnectionPickerOpen} onOpenChange={setIsConnectionPickerOpen} />
     </ThemeProvider>
   )
 }
@@ -228,7 +225,10 @@ function SettingsPage() {
               <h3 className="text-sm font-semibold text-foreground mb-2">Connections</h3>
               <div className="space-y-1">
                 <ShortcutRow keys={['⌘', 'P']} description="Open connection picker" />
-                <ShortcutRow keys={['⌘', '⇧', '1-9']} description="Switch to connection by number" />
+                <ShortcutRow
+                  keys={['⌘', '⇧', '1-9']}
+                  description="Switch to connection by number"
+                />
               </div>
             </div>
 

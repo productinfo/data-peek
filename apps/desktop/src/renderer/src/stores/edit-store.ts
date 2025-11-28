@@ -58,7 +58,11 @@ interface EditStoreState {
   isCellModified: (tabId: string, rowIndex: number, columnName: string) => boolean
 
   // Row operations
-  markRowForDeletion: (tabId: string, rowIndex: number, originalRow: Record<string, unknown>) => void
+  markRowForDeletion: (
+    tabId: string,
+    rowIndex: number,
+    originalRow: Record<string, unknown>
+  ) => void
   unmarkRowForDeletion: (tabId: string, rowIndex: number) => void
   isRowMarkedForDeletion: (tabId: string, rowIndex: number) => boolean
   addNewRow: (tabId: string, defaultValues: Record<string, unknown>) => string
@@ -173,8 +177,8 @@ export const useEditStore = create<EditStoreState>()((set, get) => ({
       if (value === originalValue || (value === '' && originalValue === null)) {
         newModifiedCells.delete(cellKey)
         // Clean up originalRows if no more modified cells for this row
-        const hasOtherModifications = Array.from(newModifiedCells.keys()).some(
-          (key) => key.startsWith(`${rowIndex}:`)
+        const hasOtherModifications = Array.from(newModifiedCells.keys()).some((key) =>
+          key.startsWith(`${rowIndex}:`)
         )
         if (!hasOtherModifications) {
           newOriginalRows.delete(rowIndex)
@@ -274,9 +278,7 @@ export const useEditStore = create<EditStoreState>()((set, get) => ({
       if (!existing) return state
 
       const newRows = existing.newRows.map((row) =>
-        row.id === rowId
-          ? { ...row, values: { ...row.values, [columnName]: value } }
-          : row
+        row.id === rowId ? { ...row, values: { ...row.values, [columnName]: value } } : row
       )
 
       newTabEdits.set(tabId, { ...existing, newRows })
@@ -312,8 +314,8 @@ export const useEditStore = create<EditStoreState>()((set, get) => ({
       newModifiedCells.delete(`${rowIndex}:${columnName}`)
 
       // Clean up originalRows if no more modifications for this row
-      const hasOtherModifications = Array.from(newModifiedCells.keys()).some(
-        (key) => key.startsWith(`${rowIndex}:`)
+      const hasOtherModifications = Array.from(newModifiedCells.keys()).some((key) =>
+        key.startsWith(`${rowIndex}:`)
       )
       const newOriginalRows = new Map(existing.originalRows)
       if (!hasOtherModifications && !existing.deletedRowIndices.has(rowIndex)) {
