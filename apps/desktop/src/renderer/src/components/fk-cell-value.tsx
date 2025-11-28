@@ -3,12 +3,7 @@
 import * as React from 'react'
 import { ExternalLink } from 'lucide-react'
 import type { ForeignKeyInfo } from '@data-peek/shared'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface FKCellValueProps {
   value: unknown

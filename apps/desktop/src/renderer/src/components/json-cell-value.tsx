@@ -37,7 +37,7 @@ function JsonTreeNode({
     if (typeof value === 'number') return <span className="text-blue-400">{value}</span>
     if (typeof value === 'string') {
       const truncated = value.length > 100 ? value.slice(0, 100) + '...' : value
-      return <span className="text-green-400">"{truncated}"</span>
+      return <span className="text-green-400">&quot;{truncated}&quot;</span>
     }
     return null
   }
@@ -47,7 +47,7 @@ function JsonTreeNode({
       <div className="flex items-start gap-1 py-0.5">
         {keyName !== undefined && (
           <>
-            <span className="text-purple-400 shrink-0">"{keyName}"</span>
+            <span className="text-purple-400 shrink-0">&quot;{keyName}&quot;</span>
             <span className="text-muted-foreground shrink-0">:</span>
           </>
         )}
@@ -79,7 +79,7 @@ function JsonTreeNode({
         {!hasChildren && <span className="w-4" />}
         {keyName !== undefined && (
           <>
-            <span className="text-purple-400">"{keyName}"</span>
+            <span className="text-purple-400">&quot;{keyName}&quot;</span>
             <span className="text-muted-foreground">:</span>
           </>
         )}
@@ -177,12 +177,7 @@ export function JsonCellValue({ value, columnName }: { value: unknown; columnNam
           <div className="flex-1 min-h-0 flex flex-col gap-3">
             {/* Toolbar */}
             <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-7"
-                onClick={handleCopy}
-              >
+              <Button variant="outline" size="sm" className="gap-1.5 h-7" onClick={handleCopy}>
                 {copied ? (
                   <>
                     <Check className="size-3 text-green-500" />

@@ -191,7 +191,9 @@ export function SqlPreviewModal({
                 Executing...
               </>
             ) : (
-              <>Execute {sqlStatements.length} Statement{sqlStatements.length !== 1 ? 's' : ''}</>
+              <>
+                Execute {sqlStatements.length} Statement{sqlStatements.length !== 1 ? 's' : ''}
+              </>
             )}
           </Button>
         </DialogFooter>

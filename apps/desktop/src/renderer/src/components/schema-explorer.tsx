@@ -87,9 +87,7 @@ export function SchemaExplorer() {
     return schemas
       .map((schema) => ({
         ...schema,
-        tables: schema.tables.filter((table) =>
-          table.name.toLowerCase().includes(query)
-        )
+        tables: schema.tables.filter((table) => table.name.toLowerCase().includes(query))
       }))
       .filter((schema) => schema.tables.length > 0)
   }, [schemas, searchQuery])

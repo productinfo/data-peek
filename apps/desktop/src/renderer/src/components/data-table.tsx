@@ -31,19 +31,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { JsonCellValue } from '@/components/json-cell-value'
 import { FKCellValue } from '@/components/fk-cell-value'
-import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@/components/ui/tooltip'
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 
 // Export types for parent components
@@ -219,9 +208,7 @@ export function DataTable<TData extends Record<string, unknown>>({
                 onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
               >
                 <span>{col.name}</span>
-                {col.foreignKey && (
-                  <Link2 className="ml-1 size-3 text-blue-400" />
-                )}
+                {col.foreignKey && <Link2 className="ml-1 size-3 text-blue-400" />}
                 <Badge
                   variant="outline"
                   className={`ml-1.5 text-[9px] px-1 py-0 font-mono ${getTypeColor(col.dataType)}`}
@@ -344,7 +331,10 @@ export function DataTable<TData extends Record<string, unknown>>({
                   {showFilters && (
                     <TableRow className="hover:bg-transparent border-border/50 bg-muted/80">
                       {headerGroup.headers.map((header) => (
-                        <TableHead key={`filter-${header.id}`} className="h-9 py-1 px-2 bg-muted/80">
+                        <TableHead
+                          key={`filter-${header.id}`}
+                          className="h-9 py-1 px-2 bg-muted/80"
+                        >
                           {header.column.getCanFilter() ? (
                             <Input
                               placeholder={`Filter...`}

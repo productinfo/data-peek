@@ -1,23 +1,10 @@
 'use client'
 
 import * as React from 'react'
-import {
-  Pencil,
-  PencilOff,
-  Plus,
-  Save,
-  RotateCcw,
-  AlertTriangle,
-  FileCode
-} from 'lucide-react'
+import { Pencil, PencilOff, Plus, Save, RotateCcw, AlertTriangle, FileCode } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -143,8 +130,8 @@ export function EditToolbar({
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs">
               <p className="text-xs">
-                This table has no primary key. Editing is disabled because we cannot
-                uniquely identify rows for UPDATE/DELETE operations.
+                This table has no primary key. Editing is disabled because we cannot uniquely
+                identify rows for UPDATE/DELETE operations.
               </p>
             </TooltipContent>
           </Tooltip>
@@ -180,17 +167,26 @@ export function EditToolbar({
 
                 <div className="flex items-center gap-1.5">
                   {pendingChanges.updates > 0 && (
-                    <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-[10px] px-1.5">
+                    <Badge
+                      variant="outline"
+                      className="text-amber-500 border-amber-500/30 text-[10px] px-1.5"
+                    >
                       {pendingChanges.updates} modified
                     </Badge>
                   )}
                   {pendingChanges.inserts > 0 && (
-                    <Badge variant="outline" className="text-green-500 border-green-500/30 text-[10px] px-1.5">
+                    <Badge
+                      variant="outline"
+                      className="text-green-500 border-green-500/30 text-[10px] px-1.5"
+                    >
                       {pendingChanges.inserts} new
                     </Badge>
                   )}
                   {pendingChanges.deletes > 0 && (
-                    <Badge variant="outline" className="text-red-500 border-red-500/30 text-[10px] px-1.5">
+                    <Badge
+                      variant="outline"
+                      className="text-red-500 border-red-500/30 text-[10px] px-1.5"
+                    >
                       {pendingChanges.deletes} deleted
                     </Badge>
                   )}
@@ -277,8 +273,8 @@ export function EditToolbar({
           <AlertDialogHeader>
             <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have {totalChanges} unsaved change{totalChanges !== 1 ? 's' : ''}.
-              This action cannot be undone.
+              You have {totalChanges} unsaved change{totalChanges !== 1 ? 's' : ''}. This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -299,16 +295,13 @@ export function EditToolbar({
           <AlertDialogHeader>
             <AlertDialogTitle>Exit Edit Mode?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have {totalChanges} unsaved change{totalChanges !== 1 ? 's' : ''}.
-              Exiting edit mode will discard all changes.
+              You have {totalChanges} unsaved change{totalChanges !== 1 ? 's' : ''}. Exiting edit
+              mode will discard all changes.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmExit}
-              className="bg-red-600 hover:bg-red-700"
-            >
+            <AlertDialogAction onClick={handleConfirmExit} className="bg-red-600 hover:bg-red-700">
               Exit & Discard
             </AlertDialogAction>
           </AlertDialogFooter>
