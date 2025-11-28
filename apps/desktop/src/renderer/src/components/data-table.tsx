@@ -26,8 +26,11 @@ import {
   Braces,
   Check,
   ChevronDown,
-  ChevronRightIcon
+  ChevronRightIcon,
+  Link2,
+  ExternalLink
 } from 'lucide-react'
+import type { ForeignKeyInfo } from '@data-peek/shared'
 import { Input } from '@/components/ui/input'
 
 import { Button } from '@/components/ui/button'
@@ -64,12 +67,22 @@ export interface DataTableSort {
   direction: 'asc' | 'desc'
 }
 
+export interface DataTableColumn {
+  name: string
+  dataType: string
+  foreignKey?: ForeignKeyInfo
+}
+
 interface DataTableProps<TData> {
-  columns: { name: string; dataType: string }[]
+  columns: DataTableColumn[]
   data: TData[]
   pageSize?: number
   onFiltersChange?: (filters: DataTableFilter[]) => void
   onSortingChange?: (sorting: DataTableSort[]) => void
+  /** Called when user clicks a FK cell (opens panel) */
+  onForeignKeyClick?: (foreignKey: ForeignKeyInfo, value: unknown) => void
+  /** Called when user Cmd+clicks a FK cell (opens new tab) */
+  onForeignKeyOpenTab?: (foreignKey: ForeignKeyInfo, value: unknown) => void
 }
 
 function getTypeColor(type: string): string {
@@ -299,14 +312,76 @@ function JsonCellValue({ value, columnName }: { value: unknown; columnName?: str
   )
 }
 
+// Foreign key cell with click-to-navigate functionality
+function ForeignKeyCellValue({
+  value,
+  foreignKey,
+  onForeignKeyClick,
+  onForeignKeyOpenTab
+}: {
+  value: unknown
+  foreignKey: ForeignKeyInfo
+  onForeignKeyClick?: (foreignKey: ForeignKeyInfo, value: unknown) => void
+  onForeignKeyOpenTab?: (foreignKey: ForeignKeyInfo, value: unknown) => void
+}) {
+  if (value === null || value === undefined) {
+    return <span className="text-muted-foreground/50 italic">NULL</span>
+  }
+
+  const stringValue = String(value)
+  const isLong = stringValue.length > 30
+  const displayValue = isLong ? stringValue.substring(0, 30) + '...' : stringValue
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey) {
+      // Cmd+Click: Open in new tab
+      onForeignKeyOpenTab?.(foreignKey, value)
+    } else {
+      // Normal click: Open panel
+      onForeignKeyClick?.(foreignKey, value)
+    }
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={handleClick}
+            className="group flex items-center gap-1 text-left text-blue-400 hover:text-blue-300 hover:underline cursor-pointer font-mono text-xs px-1 -mx-1 rounded transition-colors"
+          >
+            <span className="truncate max-w-[200px]">{displayValue}</span>
+            <ExternalLink className="size-3 opacity-0 group-hover:opacity-70 shrink-0 transition-opacity" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-sm">
+          <div className="space-y-1">
+            <p className="text-xs font-medium">View in {foreignKey.referencedTable}</p>
+            <p className="text-[10px] text-muted-foreground">
+              Click to open panel, ⌘+Click for new tab
+            </p>
+            <pre className="text-xs text-muted-foreground font-mono mt-1">{stringValue}</pre>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 function CellValue({
   value,
   dataType,
-  columnName
+  columnName,
+  foreignKey,
+  onForeignKeyClick,
+  onForeignKeyOpenTab
 }: {
   value: unknown
   dataType: string
   columnName?: string
+  foreignKey?: ForeignKeyInfo
+  onForeignKeyClick?: (foreignKey: ForeignKeyInfo, value: unknown) => void
+  onForeignKeyOpenTab?: (foreignKey: ForeignKeyInfo, value: unknown) => void
 }) {
   const [copied, setCopied] = React.useState(false)
   const lowerType = dataType.toLowerCase()
@@ -314,6 +389,18 @@ function CellValue({
   // Handle JSON/JSONB types specially
   if (lowerType.includes('json')) {
     return <JsonCellValue value={value} columnName={columnName} />
+  }
+
+  // Handle Foreign Key columns
+  if (foreignKey && value !== null && value !== undefined) {
+    return (
+      <ForeignKeyCellValue
+        value={value}
+        foreignKey={foreignKey}
+        onForeignKeyClick={onForeignKeyClick}
+        onForeignKeyOpenTab={onForeignKeyOpenTab}
+      />
+    )
   }
 
   const handleCopy = () => {
@@ -360,7 +447,9 @@ export function DataTable<TData extends Record<string, unknown>>({
   data,
   pageSize = 50,
   onFiltersChange,
-  onSortingChange
+  onSortingChange,
+  onForeignKeyClick,
+  onForeignKeyOpenTab
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -398,34 +487,51 @@ export function DataTable<TData extends Record<string, unknown>>({
         header: ({ column }) => {
           const isSorted = column.getIsSorted()
           return (
-            <Button
-              variant="ghost"
-              className="h-auto py-1 px-2 -mx-2 font-medium hover:bg-accent/50"
-              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            >
-              <span>{col.name}</span>
-              <Badge
-                variant="outline"
-                className={`ml-1.5 text-[9px] px-1 py-0 font-mono ${getTypeColor(col.dataType)}`}
+            <div className="flex flex-col gap-0.5">
+              <Button
+                variant="ghost"
+                className="h-auto py-1 px-2 -mx-2 font-medium hover:bg-accent/50"
+                onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
               >
-                {col.dataType}
-              </Badge>
-              {isSorted === 'asc' ? (
-                <ArrowUp className="ml-1 size-3 text-primary" />
-              ) : isSorted === 'desc' ? (
-                <ArrowDown className="ml-1 size-3 text-primary" />
-              ) : (
-                <ArrowUpDown className="ml-1 size-3 opacity-50" />
+                <span>{col.name}</span>
+                {col.foreignKey && (
+                  <Link2 className="ml-1 size-3 text-blue-400" />
+                )}
+                <Badge
+                  variant="outline"
+                  className={`ml-1.5 text-[9px] px-1 py-0 font-mono ${getTypeColor(col.dataType)}`}
+                >
+                  {col.dataType}
+                </Badge>
+                {isSorted === 'asc' ? (
+                  <ArrowUp className="ml-1 size-3 text-primary" />
+                ) : isSorted === 'desc' ? (
+                  <ArrowDown className="ml-1 size-3 text-primary" />
+                ) : (
+                  <ArrowUpDown className="ml-1 size-3 opacity-50" />
+                )}
+              </Button>
+              {col.foreignKey && (
+                <span className="text-[9px] text-muted-foreground px-2 -mt-0.5">
+                  → {col.foreignKey.referencedTable}
+                </span>
               )}
-            </Button>
+            </div>
           )
         },
         cell: ({ getValue }) => (
-          <CellValue value={getValue()} dataType={col.dataType} columnName={col.name} />
+          <CellValue
+            value={getValue()}
+            dataType={col.dataType}
+            columnName={col.name}
+            foreignKey={col.foreignKey}
+            onForeignKeyClick={onForeignKeyClick}
+            onForeignKeyOpenTab={onForeignKeyOpenTab}
+          />
         ),
         filterFn: 'includesString'
       })),
-    [columnDefs]
+    [columnDefs, onForeignKeyClick, onForeignKeyOpenTab]
   )
 
   const table = useReactTable({

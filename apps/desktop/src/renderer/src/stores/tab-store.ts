@@ -70,6 +70,13 @@ interface TabState {
     schemaName: string,
     tableName: string
   ) => string
+  createForeignKeyTab: (
+    connectionId: string,
+    schema: string,
+    table: string,
+    column: string,
+    value: unknown
+  ) => string
   closeTab: (tabId: string) => void
   closeAllTabs: () => void
   closeOtherTabs: (tabId: string) => void
@@ -163,6 +170,50 @@ export const useTabStore = create<TabState>()(
           order: maxOrder + 1,
           schemaName,
           tableName,
+          query,
+          savedQuery: query,
+          result: null,
+          error: null,
+          isExecuting: false,
+          currentPage: 1,
+          pageSize: 100
+        }
+
+        set((state) => ({
+          tabs: [...state.tabs, newTab],
+          activeTabId: id
+        }))
+
+        return id
+      },
+
+      createForeignKeyTab: (connectionId, schema, table, column, value) => {
+        const id = crypto.randomUUID()
+        const tabs = get().tabs
+        const maxOrder = tabs.length > 0 ? Math.max(...tabs.map((t) => t.order)) : -1
+        const tableRef = schema === 'public' ? table : `${schema}.${table}`
+
+        // Format value for SQL - handle strings, numbers, nulls
+        let formattedValue: string
+        if (value === null || value === undefined) {
+          formattedValue = 'NULL'
+        } else if (typeof value === 'string') {
+          // Escape single quotes for SQL safety
+          formattedValue = `'${value.replace(/'/g, "''")}'`
+        } else {
+          formattedValue = String(value)
+        }
+
+        const query = `SELECT * FROM ${tableRef} WHERE "${column}" = ${formattedValue} LIMIT 100;`
+
+        const newTab: QueryTab = {
+          id,
+          type: 'query',
+          title: `${table} → ${column}`,
+          isPinned: false,
+          connectionId,
+          createdAt: Date.now(),
+          order: maxOrder + 1,
           query,
           savedQuery: query,
           result: null,

@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Play,
   Download,
@@ -8,7 +9,10 @@ import {
   Loader2,
   AlertCircle,
   Database,
-  Wand2
+  Wand2,
+  PanelTopClose,
+  PanelTop,
+  DatabaseZap
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,50 +23,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useTabStore, useConnectionStore, useQueryStore } from '@/stores'
 import type { Tab } from '@/stores/tab-store'
-import { DataTable } from '@/components/data-table'
+import { DataTable, type DataTableFilter, type DataTableSort, type DataTableColumn } from '@/components/data-table'
 import { SQLEditor } from '@/components/sql-editor'
 import { formatSQL } from '@/lib/sql-formatter'
-import type { QueryResult as IpcQueryResult } from '@data-peek/shared'
-
-// PostgreSQL data type OID to name mapping (common types)
-function getDataTypeName(dataTypeID: number): string {
-  const typeMap: Record<number, string> = {
-    16: 'boolean',
-    17: 'bytea',
-    18: 'char',
-    19: 'name',
-    20: 'bigint',
-    21: 'smallint',
-    23: 'integer',
-    24: 'regproc',
-    25: 'text',
-    26: 'oid',
-    114: 'json',
-    142: 'xml',
-    700: 'real',
-    701: 'double precision',
-    790: 'money',
-    1042: 'char',
-    1043: 'varchar',
-    1082: 'date',
-    1083: 'time',
-    1114: 'timestamp',
-    1184: 'timestamptz',
-    1186: 'interval',
-    1560: 'bit',
-    1562: 'varbit',
-    1700: 'numeric',
-    2950: 'uuid',
-    3802: 'jsonb',
-    3904: 'int4range',
-    3906: 'numrange',
-    3908: 'tsrange',
-    3910: 'tstzrange',
-    3912: 'daterange',
-    3926: 'int8range'
-  }
-  return typeMap[dataTypeID] ?? `unknown(${dataTypeID})`
-}
+import type { QueryResult as IpcQueryResult, ForeignKeyInfo, ColumnInfo } from '@data-peek/shared'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { FKPanelStack, type FKPanelItem } from '@/components/fk-panel-stack'
 
 interface TabQueryEditorProps {
   tabId: string
@@ -85,7 +51,7 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
     ? connections.find((c) => c.id === tab.connectionId)
     : null
 
-  const handleRunQuery = async () => {
+  const handleRunQuery = useCallback(async () => {
     if (!tab || !tabConnection || tab.isExecuting || !tab.query.trim()) {
       return
     }
@@ -101,7 +67,7 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
         const result = {
           columns: data.fields.map((f) => ({
             name: f.name,
-            dataType: getDataTypeName(f.dataTypeID)
+            dataType: f.dataType
           })),
           rows: data.rows,
           rowCount: data.rowCount ?? data.rows.length,
@@ -138,7 +104,7 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
     } finally {
       updateTabExecuting(tabId, false)
     }
-  }
+  }, [tab, tabConnection, tabId, updateTabExecuting, updateTabResult, markTabSaved, addToHistory])
 
   const handleFormatQuery = () => {
     if (!tab || !tab.query.trim()) return
@@ -149,6 +115,257 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
   const handleQueryChange = (value: string) => {
     updateTabQuery(tabId, value)
   }
+
+  // Track if we've already attempted auto-run for this tab
+  const hasAutoRun = useRef(false)
+
+  // Collapse state for query editor
+  const [isEditorCollapsed, setIsEditorCollapsed] = useState(false)
+
+  // Track client-side filters and sorting for "Apply to Query"
+  const [tableFilters, setTableFilters] = useState<DataTableFilter[]>([])
+  const [tableSorting, setTableSorting] = useState<DataTableSort[]>([])
+
+  // FK Panel stack state
+  const [fkPanels, setFkPanels] = useState<FKPanelItem[]>([])
+
+  // Get the createForeignKeyTab action
+  const createForeignKeyTab = useTabStore((s) => s.createForeignKeyTab)
+
+  // Helper: Look up column info from schema (for FK details)
+  const getColumnsWithFKInfo = useCallback((): DataTableColumn[] => {
+    if (!tab?.result?.columns) return []
+
+    // For table-preview tabs, we can directly look up the columns from schema
+    if (tab.type === 'table-preview') {
+      const schema = schemas.find((s) => s.name === tab.schemaName)
+      const tableInfo = schema?.tables.find((t) => t.name === tab.tableName)
+
+      if (tableInfo) {
+        return tab.result.columns.map((col) => {
+          const schemaCol = tableInfo.columns.find((c) => c.name === col.name)
+          return {
+            name: col.name,
+            dataType: col.dataType,
+            foreignKey: schemaCol?.foreignKey
+          }
+        })
+      }
+    }
+
+    // For query tabs, try to match columns across all tables
+    // This is a simplified approach - won't work for aliased columns
+    return tab.result.columns.map((col) => {
+      // Search all schemas/tables for this column
+      for (const schema of schemas) {
+        for (const table of schema.tables) {
+          const schemaCol = table.columns.find((c) => c.name === col.name)
+          if (schemaCol?.foreignKey) {
+            return {
+              name: col.name,
+              dataType: col.dataType,
+              foreignKey: schemaCol.foreignKey
+            }
+          }
+        }
+      }
+      return { name: col.name, dataType: col.dataType }
+    })
+  }, [tab, schemas])
+
+  // FK Panel: Fetch data for a referenced row
+  const fetchFKData = useCallback(
+    async (fk: ForeignKeyInfo, value: unknown): Promise<{ data?: Record<string, unknown>; columns?: ColumnInfo[]; error?: string }> => {
+      if (!tabConnection) return { error: 'No connection' }
+
+      const tableRef = fk.referencedSchema === 'public'
+        ? fk.referencedTable
+        : `${fk.referencedSchema}.${fk.referencedTable}`
+
+      // Format value for SQL
+      let formattedValue: string
+      if (value === null || value === undefined) {
+        formattedValue = 'NULL'
+      } else if (typeof value === 'string') {
+        formattedValue = `'${value.replace(/'/g, "''")}'`
+      } else {
+        formattedValue = String(value)
+      }
+
+      const query = `SELECT * FROM ${tableRef} WHERE "${fk.referencedColumn}" = ${formattedValue} LIMIT 1;`
+
+      try {
+        const response = await window.api.db.query(tabConnection, query)
+        if (response.success && response.data) {
+          const data = response.data as IpcQueryResult
+          const row = data.rows[0] as Record<string, unknown> | undefined
+
+          // Get column info with FK from schema
+          const schema = schemas.find((s) => s.name === fk.referencedSchema)
+          const tableInfo = schema?.tables.find((t) => t.name === fk.referencedTable)
+          const columns = tableInfo?.columns
+
+          return { data: row, columns }
+        }
+        return { error: response.error ?? 'Query failed' }
+      } catch (err) {
+        return { error: err instanceof Error ? err.message : String(err) }
+      }
+    },
+    [tabConnection, schemas]
+  )
+
+  // FK Panel: Handle click to open panel
+  const handleFKClick = useCallback(
+    async (fk: ForeignKeyInfo, value: unknown) => {
+      const panelId = crypto.randomUUID()
+
+      // Add loading panel
+      setFkPanels((prev) => [
+        ...prev,
+        {
+          id: panelId,
+          foreignKey: fk,
+          value,
+          isLoading: true
+        }
+      ])
+
+      // Fetch data
+      const result = await fetchFKData(fk, value)
+
+      // Update panel with result
+      setFkPanels((prev) =>
+        prev.map((p) =>
+          p.id === panelId
+            ? { ...p, isLoading: false, data: result.data, columns: result.columns, error: result.error }
+            : p
+        )
+      )
+    },
+    [fetchFKData]
+  )
+
+  // FK Panel: Handle Cmd+Click to open in new tab
+  const handleFKOpenTab = useCallback(
+    (fk: ForeignKeyInfo, value: unknown) => {
+      if (!tabConnection) return
+      createForeignKeyTab(
+        tabConnection.id,
+        fk.referencedSchema,
+        fk.referencedTable,
+        fk.referencedColumn,
+        value
+      )
+    },
+    [tabConnection, createForeignKeyTab]
+  )
+
+  // FK Panel: Handle drill-down (click FK in panel)
+  const handleFKDrillDown = useCallback(
+    async (fk: ForeignKeyInfo, value: unknown) => {
+      await handleFKClick(fk, value)
+    },
+    [handleFKClick]
+  )
+
+  // FK Panel: Close a specific panel
+  const handleCloseFKPanel = useCallback((panelId: string) => {
+    setFkPanels((prev) => {
+      const index = prev.findIndex((p) => p.id === panelId)
+      if (index === -1) return prev
+      // Close this panel and all panels after it
+      return prev.slice(0, index)
+    })
+  }, [])
+
+  // FK Panel: Close all panels
+  const handleCloseAllFKPanels = useCallback(() => {
+    setFkPanels([])
+  }, [])
+
+  // Generate SQL WHERE clause from filters
+  const generateWhereClause = (filters: DataTableFilter[]): string => {
+    if (filters.length === 0) return ''
+    const conditions = filters.map((f) => {
+      // Escape single quotes in value
+      const escapedValue = f.value.replace(/'/g, "''")
+      return `"${f.column}" ILIKE '%${escapedValue}%'`
+    })
+    return `WHERE ${conditions.join(' AND ')}`
+  }
+
+  // Generate SQL ORDER BY clause from sorting
+  const generateOrderByClause = (sorting: DataTableSort[]): string => {
+    if (sorting.length === 0) return ''
+    const orders = sorting.map((s) => `"${s.column}" ${s.direction.toUpperCase()}`)
+    return `ORDER BY ${orders.join(', ')}`
+  }
+
+  // Build a new query with filters/sorting applied
+  const buildQueryWithFilters = (): string => {
+    if (!tab) return ''
+
+    // For table preview tabs, rebuild from scratch
+    if (tab.type === 'table-preview') {
+      const tableRef =
+        tab.schemaName === 'public' ? tab.tableName : `${tab.schemaName}.${tab.tableName}`
+      const wherePart = generateWhereClause(tableFilters)
+      const orderPart = generateOrderByClause(tableSorting)
+      return `SELECT * FROM ${tableRef} ${wherePart} ${orderPart} LIMIT 100;`
+        .replace(/\s+/g, ' ')
+        .trim()
+    }
+
+    // For query tabs, try to inject WHERE/ORDER BY
+    // This is simplified - a full implementation would parse the SQL AST
+    let baseQuery = tab.query.trim()
+
+    // Remove trailing semicolon
+    if (baseQuery.endsWith(';')) {
+      baseQuery = baseQuery.slice(0, -1)
+    }
+
+    // Remove existing LIMIT for re-adding at the end
+    const limitMatch = baseQuery.match(/\s+LIMIT\s+\d+\s*$/i)
+    let limitClause = ''
+    if (limitMatch) {
+      limitClause = limitMatch[0]
+      baseQuery = baseQuery.slice(0, -limitMatch[0].length)
+    }
+
+    const wherePart = generateWhereClause(tableFilters)
+    const orderPart = generateOrderByClause(tableSorting)
+
+    // Append clauses (simplified - assumes no existing WHERE/ORDER BY)
+    return `${baseQuery} ${wherePart} ${orderPart}${limitClause};`.replace(/\s+/g, ' ').trim()
+  }
+
+  const handleApplyToQuery = () => {
+    if (!tab || (tableFilters.length === 0 && tableSorting.length === 0)) return
+    const newQuery = buildQueryWithFilters()
+    updateTabQuery(tabId, formatSQL(newQuery))
+    // Automatically run the new query
+    setTimeout(() => handleRunQuery(), 100)
+  }
+
+  const hasActiveFiltersOrSorting = tableFilters.length > 0 || tableSorting.length > 0
+
+  // Auto-run query for table-preview tabs when first created
+  useEffect(() => {
+    if (
+      tab?.type === 'table-preview' &&
+      !tab.result &&
+      !tab.error &&
+      !tab.isExecuting &&
+      tabConnection &&
+      tab.query.trim() &&
+      !hasAutoRun.current
+    ) {
+      hasAutoRun.current = true
+      handleRunQuery()
+    }
+  }, [handleRunQuery, tab, tabConnection])
 
   if (!tab) {
     return null
@@ -164,7 +381,7 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
           <div>
             <h2 className="text-lg font-medium">No Connection</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              This tab's connection is no longer available.
+              This tab&apos;s connection is no longer available.
               <br />
               Select a different connection from the sidebar.
             </p>
@@ -180,22 +397,37 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Query Editor Section */}
       <div className="flex flex-col border-b border-border/40 shrink-0">
-        {/* Monaco SQL Editor */}
-        <div className="p-3 pb-0">
-          <SQLEditor
-            value={tab.query}
-            onChange={handleQueryChange}
-            onRun={handleRunQuery}
-            onFormat={handleFormatQuery}
-            height={160}
-            placeholder="SELECT * FROM your_table LIMIT 100;"
-            schemas={schemas}
-          />
-        </div>
+        {/* Monaco SQL Editor - Collapsible */}
+        {!isEditorCollapsed && (
+          <div className="p-3 pb-0">
+            <SQLEditor
+              value={tab.query}
+              onChange={handleQueryChange}
+              onRun={handleRunQuery}
+              onFormat={handleFormatQuery}
+              height={160}
+              placeholder="SELECT * FROM your_table LIMIT 100;"
+              schemas={schemas}
+            />
+          </div>
+        )}
 
         {/* Editor Toolbar */}
         <div className="flex items-center justify-between bg-muted/20 px-3 py-2">
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => setIsEditorCollapsed(!isEditorCollapsed)}
+              title={isEditorCollapsed ? 'Show query editor' : 'Hide query editor'}
+            >
+              {isEditorCollapsed ? (
+                <PanelTop className="size-3.5" />
+              ) : (
+                <PanelTopClose className="size-3.5" />
+              )}
+            </Button>
             <Button
               size="sm"
               className="gap-1.5 h-7"
@@ -208,25 +440,33 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
                 <Play className="size-3.5" />
               )}
               Run
-              <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+              <kbd className="ml-1.5 rounded bg-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
                 ⌘↵
               </kbd>
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 h-7"
-              disabled={!tab.query.trim()}
-              onClick={handleFormatQuery}
-            >
-              <Wand2 className="size-3.5" />
-              Format
-              <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
-                ⌘⇧F
-              </kbd>
-            </Button>
+            {!isEditorCollapsed && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 h-7"
+                disabled={!tab.query.trim()}
+                onClick={handleFormatQuery}
+              >
+                <Wand2 className="size-3.5" />
+                Format
+                <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                  ⌘⇧F
+                </kbd>
+              </Button>
+            )}
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {isEditorCollapsed && (
+              <code className="text-[10px] bg-muted/50 px-2 py-0.5 rounded max-w-[300px] truncate">
+                {tab.query.replace(/\s+/g, ' ').slice(0, 60)}
+                {tab.query.length > 60 ? '...' : ''}
+              </code>
+            )}
             <span className="flex items-center gap-1.5">
               <span
                 className={`size-1.5 rounded-full ${tabConnection.isConnected ? 'bg-green-500' : 'bg-yellow-500'}`}
@@ -252,9 +492,13 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
             {/* Results Table */}
             <div className="flex-1 overflow-hidden p-3">
               <DataTable
-                columns={tab.result.columns}
+                columns={getColumnsWithFKInfo()}
                 data={paginatedRows as Record<string, unknown>[]}
                 pageSize={tab.pageSize}
+                onFiltersChange={setTableFilters}
+                onSortingChange={setTableSorting}
+                onForeignKeyClick={handleFKClick}
+                onForeignKeyOpenTab={handleFKOpenTab}
               />
             </div>
 
@@ -268,6 +512,29 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
                 <span>{tab.result.durationMs}ms</span>
               </div>
               <div className="flex items-center gap-2">
+                {hasActiveFiltersOrSorting && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 h-7 text-primary border-primary/50 hover:bg-primary/10"
+                          onClick={handleApplyToQuery}
+                        >
+                          <DatabaseZap className="size-3.5" />
+                          Apply to Query
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p className="text-xs">
+                          Convert your current filters and sorting to SQL WHERE/ORDER BY clauses and
+                          re-run the query against the database.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-1.5 h-7">
@@ -293,13 +560,21 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-2">
               <p className="text-muted-foreground">Run a query to see results</p>
-              <p className="text-xs text-muted-foreground/70">
-                Press ⌘+Enter to execute
-              </p>
+              <p className="text-xs text-muted-foreground/70">Press ⌘+Enter to execute</p>
             </div>
           </div>
         )}
       </div>
+
+      {/* FK Panel Stack */}
+      <FKPanelStack
+        panels={fkPanels}
+        connection={tabConnection}
+        onClose={handleCloseFKPanel}
+        onCloseAll={handleCloseAllFKPanels}
+        onDrillDown={handleFKDrillDown}
+        onOpenInTab={handleFKOpenTab}
+      />
     </div>
   )
 }

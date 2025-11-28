@@ -9,12 +9,26 @@ export interface ConnectionConfig {
   ssl?: boolean;
 }
 
+/**
+ * Supported database types
+ */
+export type DatabaseType = 'postgresql' | 'mysql' | 'sqlite';
+
+/**
+ * Field metadata from query results
+ * The server resolves type names so the frontend stays database-agnostic
+ */
+export interface QueryField {
+  name: string;
+  /** Human-readable data type (e.g., 'varchar', 'integer', 'jsonb') */
+  dataType: string;
+  /** Original database-specific type ID (for advanced use cases) */
+  dataTypeID?: number;
+}
+
 export interface QueryResult {
   rows: Record<string, unknown>[];
-  fields: {
-    name: string;
-    dataTypeID: number;
-  }[];
+  fields: QueryField[];
   rowCount: number;
   durationMs: number;
 }
@@ -30,6 +44,20 @@ export interface IpcResponse<T> {
 // ============================================
 
 /**
+ * Foreign key relationship metadata
+ */
+export interface ForeignKeyInfo {
+  /** Constraint name in the database */
+  constraintName: string;
+  /** Schema containing the referenced table */
+  referencedSchema: string;
+  /** Referenced table name */
+  referencedTable: string;
+  /** Referenced column name */
+  referencedColumn: string;
+}
+
+/**
  * Column metadata for a table or view
  * Compatible with: PostgreSQL, MySQL, SQLite
  */
@@ -41,6 +69,8 @@ export interface ColumnInfo {
   defaultValue?: string;
   /** Column position in the table (1-indexed) */
   ordinalPosition: number;
+  /** Foreign key relationship (if this column references another table) */
+  foreignKey?: ForeignKeyInfo;
 }
 
 /**

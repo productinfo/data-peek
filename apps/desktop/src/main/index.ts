@@ -3,7 +3,84 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { Client } from 'pg'
 import icon from '../../resources/icon.png?asset'
-import type { ConnectionConfig, SchemaInfo, TableInfo, ColumnInfo } from '@shared/index'
+import type { ConnectionConfig, SchemaInfo, TableInfo, ColumnInfo, QueryField, ForeignKeyInfo } from '@shared/index'
+
+// ============================================
+// PostgreSQL OID to Type Name Mapping
+// Reference: https://github.com/postgres/postgres/blob/master/src/include/catalog/pg_type.dat
+// ============================================
+const PG_TYPE_MAP: Record<number, string> = {
+  16: 'boolean',
+  17: 'bytea',
+  18: 'char',
+  19: 'name',
+  20: 'bigint',
+  21: 'smallint',
+  23: 'integer',
+  24: 'regproc',
+  25: 'text',
+  26: 'oid',
+  114: 'json',
+  142: 'xml',
+  600: 'point',
+  601: 'lseg',
+  602: 'path',
+  603: 'box',
+  604: 'polygon',
+  628: 'line',
+  700: 'real',
+  701: 'double precision',
+  718: 'circle',
+  790: 'money',
+  829: 'macaddr',
+  869: 'inet',
+  650: 'cidr',
+  1042: 'char',
+  1043: 'varchar',
+  1082: 'date',
+  1083: 'time',
+  1114: 'timestamp',
+  1184: 'timestamptz',
+  1186: 'interval',
+  1266: 'timetz',
+  1560: 'bit',
+  1562: 'varbit',
+  1700: 'numeric',
+  2950: 'uuid',
+  3802: 'jsonb',
+  3904: 'int4range',
+  3906: 'numrange',
+  3908: 'tsrange',
+  3910: 'tstzrange',
+  3912: 'daterange',
+  3926: 'int8range',
+  // Array types (common ones)
+  1000: 'boolean[]',
+  1001: 'bytea[]',
+  1005: 'smallint[]',
+  1007: 'integer[]',
+  1009: 'text[]',
+  1014: 'char[]',
+  1015: 'varchar[]',
+  1016: 'bigint[]',
+  1021: 'real[]',
+  1022: 'double precision[]',
+  1028: 'oid[]',
+  1115: 'timestamp[]',
+  1182: 'date[]',
+  1183: 'time[]',
+  1231: 'numeric[]',
+  2951: 'uuid[]',
+  3807: 'jsonb[]',
+  199: 'json[]'
+}
+
+/**
+ * Resolve PostgreSQL OID to human-readable type name
+ */
+function resolvePostgresType(dataTypeID: number): string {
+  return PG_TYPE_MAP[dataTypeID] ?? `unknown(${dataTypeID})`
+}
 
 // electron-store v11 is ESM-only, use dynamic import
 type StoreType = import('electron-store').default<{ connections: ConnectionConfig[] }>
@@ -110,11 +187,18 @@ app.whenReady().then(async () => {
       console.log('[main:db:query] Rows:', res.rowCount)
       await client.end()
 
+      // Map fields with resolved type names
+      const fields: QueryField[] = res.fields.map((f) => ({
+        name: f.name,
+        dataType: resolvePostgresType(f.dataTypeID),
+        dataTypeID: f.dataTypeID
+      }))
+
       return {
         success: true,
         data: {
           rows: res.rows,
-          fields: res.fields.map((f) => ({ name: f.name, dataTypeID: f.dataTypeID })),
+          fields,
           rowCount: res.rowCount,
           durationMs: duration
         }
@@ -185,7 +269,41 @@ app.whenReady().then(async () => {
         ORDER BY c.table_schema, c.table_name, c.ordinal_position
       `)
 
+      // Query 4: Get all foreign key relationships
+      const foreignKeysResult = await client.query(`
+        SELECT
+          tc.table_schema,
+          tc.table_name,
+          kcu.column_name,
+          tc.constraint_name,
+          ccu.table_schema AS referenced_schema,
+          ccu.table_name AS referenced_table,
+          ccu.column_name AS referenced_column
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+        JOIN information_schema.constraint_column_usage ccu
+          ON ccu.constraint_name = tc.constraint_name
+          AND ccu.table_schema = tc.constraint_schema
+        WHERE tc.constraint_type = 'FOREIGN KEY'
+          AND tc.table_schema NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+        ORDER BY tc.table_schema, tc.table_name, kcu.column_name
+      `)
+
       await client.end()
+
+      // Build foreign key lookup map: "schema.table.column" -> ForeignKeyInfo
+      const fkMap = new Map<string, ForeignKeyInfo>()
+      for (const row of foreignKeysResult.rows) {
+        const key = `${row.table_schema}.${row.table_name}.${row.column_name}`
+        fkMap.set(key, {
+          constraintName: row.constraint_name,
+          referencedSchema: row.referenced_schema,
+          referencedTable: row.referenced_table,
+          referencedColumn: row.referenced_column
+        })
+      }
 
       // Build schema structure
       const schemaMap = new Map<string, SchemaInfo>()
@@ -229,13 +347,18 @@ app.whenReady().then(async () => {
             dataType = `${row.udt_name}(${row.numeric_precision},${row.numeric_scale})`
           }
 
+          // Check for foreign key relationship
+          const fkKey = `${row.table_schema}.${row.table_name}.${row.column_name}`
+          const foreignKey = fkMap.get(fkKey)
+
           const column: ColumnInfo = {
             name: row.column_name,
             dataType,
             isNullable: row.is_nullable === 'YES',
             isPrimaryKey: row.is_primary_key,
             defaultValue: row.column_default || undefined,
-            ordinalPosition: row.ordinal_position
+            ordinalPosition: row.ordinal_position,
+            foreignKey
           }
           table.columns.push(column)
         }
