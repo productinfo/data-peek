@@ -282,8 +282,8 @@ export function ConnectionSwitcher() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete connection?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deletingConnection?.name}"? This action cannot be
-              undone.
+              Are you sure you want to delete &quot;{deletingConnection?.name}&quot;? This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -127,7 +127,7 @@ export function LicenseActivationModal({ open, onOpenChange }: LicenseActivation
 
           <div className="border-t pt-4">
             <p className="text-sm text-muted-foreground">
-              Don't have a license?{' '}
+              Don&apos;t have a license?{' '}
               <a
                 href="https://data-peek.dev/pricing"
                 target="_blank"

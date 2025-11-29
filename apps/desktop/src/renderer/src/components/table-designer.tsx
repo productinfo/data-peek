@@ -24,11 +24,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Dialog,
   DialogContent,
@@ -328,7 +324,11 @@ export function TableDesigner({ tabId }: TableDesignerProps) {
             disabled={isPreviewLoading || hasErrors}
             className="gap-1.5"
           >
-            {isPreviewLoading ? <Loader2 className="size-3.5 animate-spin" /> : <Code className="size-3.5" />}
+            {isPreviewLoading ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Code className="size-3.5" />
+            )}
             Preview SQL
           </Button>
           <Button
@@ -337,7 +337,11 @@ export function TableDesigner({ tabId }: TableDesignerProps) {
             disabled={state?.isSaving || hasErrors || !dirty}
             className="gap-1.5"
           >
-            {state?.isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+            {state?.isSaving ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Save className="size-3.5" />
+            )}
             {tab.mode === 'create' ? 'Create Table' : 'Save Changes'}
           </Button>
         </div>
@@ -422,11 +426,10 @@ export function TableDesigner({ tabId }: TableDesignerProps) {
                         <div></div>
                       </div>
                       {/* Column rows */}
-                      {definition.columns.map((col, index) => (
+                      {definition.columns.map((col) => (
                         <ColumnRow
                           key={col.id}
                           column={col}
-                          index={index}
                           isSelected={state?.selectedColumnId === col.id}
                           validationErrors={validationErrors.filter((e) =>
                             e.field.startsWith(`column.${col.id}`)
@@ -552,9 +555,7 @@ export function TableDesigner({ tabId }: TableDesignerProps) {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>SQL Preview</DialogTitle>
-            <DialogDescription>
-              This SQL will be executed to create the table.
-            </DialogDescription>
+            <DialogDescription>This SQL will be executed to create the table.</DialogDescription>
           </DialogHeader>
           <div className="rounded-lg bg-muted/50 p-4 font-mono text-sm overflow-auto max-h-96">
             <pre className="whitespace-pre-wrap">{previewSql}</pre>
@@ -577,7 +578,6 @@ export function TableDesigner({ tabId }: TableDesignerProps) {
 // Column row component
 interface ColumnRowProps {
   column: ColumnDefinition
-  index: number
   isSelected: boolean
   validationErrors: ValidationError[]
   onSelect: () => void
@@ -588,7 +588,6 @@ interface ColumnRowProps {
 
 function ColumnRow({
   column,
-  index: _index,
   isSelected,
   validationErrors,
   onSelect,
@@ -653,7 +652,9 @@ function ColumnRow({
           <Input
             type="number"
             value={column.length ?? ''}
-            onChange={(e) => onChange('length', e.target.value ? parseInt(e.target.value) : undefined)}
+            onChange={(e) =>
+              onChange('length', e.target.value ? parseInt(e.target.value) : undefined)
+            }
             placeholder="n"
             className="h-8 w-14 text-center"
           />
@@ -663,14 +664,18 @@ function ColumnRow({
             <Input
               type="number"
               value={column.precision ?? ''}
-              onChange={(e) => onChange('precision', e.target.value ? parseInt(e.target.value) : undefined)}
+              onChange={(e) =>
+                onChange('precision', e.target.value ? parseInt(e.target.value) : undefined)
+              }
               placeholder="p"
               className="h-8 w-12 text-center"
             />
             <Input
               type="number"
               value={column.scale ?? ''}
-              onChange={(e) => onChange('scale', e.target.value ? parseInt(e.target.value) : undefined)}
+              onChange={(e) =>
+                onChange('scale', e.target.value ? parseInt(e.target.value) : undefined)
+              }
               placeholder="s"
               className="h-8 w-12 text-center"
             />
