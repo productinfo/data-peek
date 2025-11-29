@@ -60,9 +60,7 @@ function resolveMySQLType(typeCode: number): string {
 /**
  * Create MySQL connection config from our ConnectionConfig
  */
-function toMySQLConfig(
-  config: ConnectionConfig
-): mysql.ConnectionOptions {
+function toMySQLConfig(config: ConnectionConfig): mysql.ConnectionOptions {
   return {
     host: config.host,
     port: config.port,
@@ -71,6 +69,18 @@ function toMySQLConfig(
     database: config.database,
     ssl: config.ssl ? {} : undefined
   }
+}
+
+/**
+ * Normalize row from MySQL query to lowercase keys
+ * MySQL can return column names in different cases depending on configuration
+ */
+function normalizeRow<T extends Record<string, unknown>>(row: Record<string, unknown>): T {
+  const normalized: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(row)) {
+    normalized[key.toLowerCase()] = value
+  }
+  return normalized as T
 }
 
 /**
@@ -166,7 +176,8 @@ export class MySQLAdapter implements DatabaseAdapter {
         ORDER BY schema_name
       `)
 
-      const schemas = schemasRows as Array<{ schema_name: string }>
+      const schemasRaw = schemasRows as Array<Record<string, unknown>>
+      const schemas = schemasRaw.map((row) => normalizeRow<{ schema_name: string }>(row))
 
       // Get all tables and views
       const [tablesRows] = await connection.query(`
@@ -179,11 +190,14 @@ export class MySQLAdapter implements DatabaseAdapter {
         ORDER BY table_schema, table_name
       `)
 
-      const tables = tablesRows as Array<{
-        table_schema: string
-        table_name: string
-        table_type: string
-      }>
+      const tablesRaw = tablesRows as Array<Record<string, unknown>>
+      const tables = tablesRaw.map((row) =>
+        normalizeRow<{
+          table_schema: string
+          table_name: string
+          table_type: string
+        }>(row)
+      )
 
       // Get all columns with primary key info
       const [columnsRows] = await connection.query(`
@@ -211,21 +225,24 @@ export class MySQLAdapter implements DatabaseAdapter {
         ORDER BY c.table_schema, c.table_name, c.ordinal_position
       `)
 
-      const columns = columnsRows as Array<{
-        table_schema: string
-        table_name: string
-        column_name: string
-        data_type: string
-        column_type: string
-        is_nullable: string
-        column_default: string | null
-        ordinal_position: number
-        character_maximum_length: number | null
-        numeric_precision: number | null
-        numeric_scale: number | null
-        extra: string
-        is_primary_key: number
-      }>
+      const columnsRaw = columnsRows as Array<Record<string, unknown>>
+      const columns = columnsRaw.map((row) =>
+        normalizeRow<{
+          table_schema: string
+          table_name: string
+          column_name: string
+          data_type: string
+          column_type: string
+          is_nullable: string
+          column_default: string | null
+          ordinal_position: number
+          character_maximum_length: number | null
+          numeric_precision: number | null
+          numeric_scale: number | null
+          extra: string
+          is_primary_key: number
+        }>(row)
+      )
 
       // Get all foreign key relationships
       const [fkRows] = await connection.query(`
@@ -243,15 +260,18 @@ export class MySQLAdapter implements DatabaseAdapter {
         ORDER BY kcu.table_schema, kcu.table_name, kcu.column_name
       `)
 
-      const foreignKeys = fkRows as Array<{
-        table_schema: string
-        table_name: string
-        column_name: string
-        constraint_name: string
-        referenced_schema: string
-        referenced_table: string
-        referenced_column: string
-      }>
+      const fkRaw = fkRows as Array<Record<string, unknown>>
+      const foreignKeys = fkRaw.map((row) =>
+        normalizeRow<{
+          table_schema: string
+          table_name: string
+          column_name: string
+          constraint_name: string
+          referenced_schema: string
+          referenced_table: string
+          referenced_column: string
+        }>(row)
+      )
 
       // Build foreign key lookup map
       const fkMap = new Map<string, ForeignKeyInfo>()
@@ -298,7 +318,7 @@ export class MySQLAdapter implements DatabaseAdapter {
         const table = tableMap.get(tableKey)
         if (table) {
           // Format data type with length/precision
-          let dataType = row.column_type || row.data_type
+          const dataType = row.column_type || row.data_type
           // MySQL column_type already includes size info like varchar(255)
 
           const fkKey = `${row.table_schema}.${row.table_name}.${row.column_name}`
@@ -334,9 +354,7 @@ export class MySQLAdapter implements DatabaseAdapter {
 
     try {
       // MySQL uses EXPLAIN ANALYZE (8.0.18+) or just EXPLAIN
-      const explainQuery = analyze
-        ? `EXPLAIN ANALYZE ${sql}`
-        : `EXPLAIN FORMAT=JSON ${sql}`
+      const explainQuery = analyze ? `EXPLAIN ANALYZE ${sql}` : `EXPLAIN FORMAT=JSON ${sql}`
 
       const start = Date.now()
       const [rows] = await connection.query(explainQuery)
@@ -618,6 +636,7 @@ export class MySQLAdapter implements DatabaseAdapter {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getSequences(_config: ConnectionConfig): Promise<SequenceInfo[]> {
     // MySQL doesn't have sequences - it uses AUTO_INCREMENT
     // Return empty array as sequences are a PostgreSQL concept

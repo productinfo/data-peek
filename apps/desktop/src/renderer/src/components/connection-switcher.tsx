@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, Plus, Settings, Loader2 } from 'lucide-react'
+import { ChevronDown, Plus, Settings, Loader2, Pencil, Trash2 } from 'lucide-react'
 
 import {
   DropdownMenu,
@@ -12,8 +12,18 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
-import { useConnectionStore } from '@/stores'
+import { useConnectionStore, type Connection } from '@/stores'
 import { useNavigate } from '@tanstack/react-router'
 import { AddConnectionDialog } from './add-connection-dialog'
 import type { DatabaseType } from '@shared/index'
@@ -80,9 +90,12 @@ export function ConnectionSwitcher() {
   const setActiveConnection = useConnectionStore((s) => s.setActiveConnection)
   const setConnectionStatus = useConnectionStore((s) => s.setConnectionStatus)
   const initializeConnections = useConnectionStore((s) => s.initializeConnections)
+  const removeConnection = useConnectionStore((s) => s.removeConnection)
   const isInitialized = useConnectionStore((s) => s.isInitialized)
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [editingConnection, setEditingConnection] = useState<Connection | null>(null)
+  const [deletingConnection, setDeletingConnection] = useState<Connection | null>(null)
 
   // Initialize connections from persistent storage on mount
   useEffect(() => {
@@ -104,6 +117,23 @@ export function ConnectionSwitcher() {
 
   const handleManageConnections = () => {
     navigate({ to: '/settings' })
+  }
+
+  const handleEditConnection = (e: React.MouseEvent, connection: Connection) => {
+    e.stopPropagation()
+    setEditingConnection(connection)
+  }
+
+  const handleDeleteConnection = (e: React.MouseEvent, connection: Connection) => {
+    e.stopPropagation()
+    setDeletingConnection(connection)
+  }
+
+  const confirmDelete = async () => {
+    if (deletingConnection) {
+      await removeConnection(deletingConnection.id)
+      setDeletingConnection(null)
+    }
   }
 
   // Show loading state while initializing
@@ -174,7 +204,7 @@ export function ConnectionSwitcher() {
               <DropdownMenuItem
                 key={connection.id}
                 onClick={() => handleSelectConnection(connection.id)}
-                className="gap-2 p-2"
+                className="gap-2 p-2 group"
                 disabled={connection.isConnecting}
               >
                 <div className="relative flex size-6 items-center justify-center rounded-xs border">
@@ -198,6 +228,22 @@ export function ConnectionSwitcher() {
                     {connection.host}:{connection.port}/{connection.database}
                   </span>
                 </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => handleEditConnection(e, connection)}
+                    className="p-1 hover:bg-muted rounded"
+                    title="Edit connection"
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteConnection(e, connection)}
+                    className="p-1 hover:bg-destructive/10 hover:text-destructive rounded"
+                    title="Delete connection"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
                 {index < 9 && <DropdownMenuShortcut>⌘⇧{index + 1}</DropdownMenuShortcut>}
               </DropdownMenuItem>
             ))}
@@ -217,7 +263,40 @@ export function ConnectionSwitcher() {
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
-      <AddConnectionDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />
+
+      {/* Add/Edit Connection Dialog */}
+      <AddConnectionDialog
+        open={isAddDialogOpen || !!editingConnection}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsAddDialogOpen(false)
+            setEditingConnection(null)
+          }
+        }}
+        connection={editingConnection}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingConnection} onOpenChange={() => setDeletingConnection(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete connection?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deletingConnection?.name}"? This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarMenu>
   )
 }

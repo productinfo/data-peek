@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2, Database, CheckCircle2, XCircle, Link, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,12 +12,13 @@ import {
   SheetHeader,
   SheetTitle
 } from '@/components/ui/sheet'
-import { useConnectionStore } from '@/stores'
+import { useConnectionStore, type Connection } from '@/stores'
 import type { DatabaseType } from '@shared/index'
 
 interface AddConnectionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  connection?: Connection | null
 }
 
 type InputMode = 'manual' | 'connection-string'
@@ -72,8 +73,14 @@ function parseConnectionString(
   }
 }
 
-export function AddConnectionDialog({ open, onOpenChange }: AddConnectionDialogProps) {
+export function AddConnectionDialog({
+  open,
+  onOpenChange,
+  connection: editConnection
+}: AddConnectionDialogProps) {
   const addConnection = useConnectionStore((s) => s.addConnection)
+  const updateConnection = useConnectionStore((s) => s.updateConnection)
+  const isEditMode = !!editConnection
 
   const [dbType, setDbType] = useState<DatabaseType>('postgresql')
   const [inputMode, setInputMode] = useState<InputMode>('manual')
@@ -92,6 +99,25 @@ export function AddConnectionDialog({ open, onOpenChange }: AddConnectionDialogP
   const [isSaving, setIsSaving] = useState(false)
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null)
   const [testError, setTestError] = useState<string | null>(null)
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editConnection && open) {
+      setDbType(editConnection.dbType || 'postgresql')
+      setName(editConnection.name)
+      setHost(editConnection.host)
+      setPort(String(editConnection.port))
+      setDatabase(editConnection.database)
+      setUser(editConnection.user)
+      setPassword(editConnection.password || '')
+      setSsl(editConnection.ssl || false)
+      setInputMode('manual')
+      setConnectionString('')
+      setParseError(null)
+      setTestResult(null)
+      setTestError(null)
+    }
+  }, [editConnection, open])
 
   const handleDbTypeChange = (newType: DatabaseType) => {
     setDbType(newType)
@@ -155,7 +181,7 @@ export function AddConnectionDialog({ open, onOpenChange }: AddConnectionDialogP
   }
 
   const getConnectionConfig = () => ({
-    id: crypto.randomUUID(),
+    id: editConnection?.id || crypto.randomUUID(),
     name: name || `${host}/${database}`,
     host,
     port: parseInt(port, 10),
@@ -195,16 +221,22 @@ export function AddConnectionDialog({ open, onOpenChange }: AddConnectionDialogP
     try {
       const config = getConnectionConfig()
 
-      // Save to persistent storage
-      const result = await window.api.connections.add(config)
-
-      if (result.success && result.data) {
-        // Add to local store
-        addConnection(result.data)
+      if (isEditMode) {
+        // Update existing connection
+        await updateConnection(config.id, config)
         handleClose()
       } else {
-        setTestResult('error')
-        setTestError(result.error || 'Failed to save connection')
+        // Save new connection to persistent storage
+        const result = await window.api.connections.add(config)
+
+        if (result.success && result.data) {
+          // Add to local store
+          addConnection(result.data)
+          handleClose()
+        } else {
+          setTestResult('error')
+          setTestError(result.error || 'Failed to save connection')
+        }
       }
     } catch (error) {
       setTestResult('error')
@@ -225,10 +257,12 @@ export function AddConnectionDialog({ open, onOpenChange }: AddConnectionDialogP
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Database className="size-5" />
-            Add Connection
+            {isEditMode ? 'Edit Connection' : 'Add Connection'}
           </SheetTitle>
           <SheetDescription>
-            Add a new database connection. Your credentials are stored securely on your device.
+            {isEditMode
+              ? 'Update your database connection settings.'
+              : 'Add a new database connection. Your credentials are stored securely on your device.'}
           </SheetDescription>
         </SheetHeader>
 
@@ -465,8 +499,10 @@ export function AddConnectionDialog({ open, onOpenChange }: AddConnectionDialogP
             {isSaving ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Saving...
+                {isEditMode ? 'Updating...' : 'Saving...'}
               </>
+            ) : isEditMode ? (
+              'Update Connection'
             ) : (
               'Save Connection'
             )}
