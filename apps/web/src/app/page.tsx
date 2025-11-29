@@ -2,7 +2,6 @@ import { Header } from '@/components/marketing/header'
 import { Hero } from '@/components/marketing/hero'
 import { Features } from '@/components/marketing/features'
 import { Pricing } from '@/components/marketing/pricing'
-import { Comparison } from '@/components/marketing/comparison'
 import { FAQ } from '@/components/marketing/faq'
 import { CTA } from '@/components/marketing/cta'
 import { Footer } from '@/components/marketing/footer'
@@ -15,7 +14,6 @@ export default function Home() {
         <Hero />
         <Features />
         <Pricing />
-        <Comparison />
         <FAQ />
         <CTA />
       </main>
