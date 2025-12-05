@@ -256,7 +256,9 @@ export function getAIConfig(): AIConfig | null {
 export function setAIConfig(config: AIConfig | null): void {
   if (!config) {
     // Don't clear everything when null is passed - use clearAIConfig() for that
-    console.log('[ai-service] setAIConfig called with null, ignoring. Use clearAIConfig() to clear.')
+    console.log(
+      '[ai-service] setAIConfig called with null, ignoring. Use clearAIConfig() to clear.'
+    )
     return
   }
 
@@ -421,7 +423,7 @@ export async function validateAPIKey(
     await generateText({
       model,
       prompt: 'Say "ok"',
-      maxOutputTokens: 5
+      maxTokens: 5
     })
 
     return { valid: true }
