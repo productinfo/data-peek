@@ -8,18 +8,13 @@ import { app } from 'electron'
 // - Linux: ~/.config/data-peek/logs/
 log.initialize()
 
-// Configure log level based on environment
-// Production: info and above (debug suppressed)
-// Development: all levels
 const level = app.isPackaged ? 'info' : 'debug'
 log.transports.console.level = level
 log.transports.file.level = level
 
-// Configure file rotation (default is 1MB, keep 5 files)
 log.transports.file.maxSize = 5 * 1024 * 1024 // 5MB
 log.transports.file.format = '[{y}-{m}-{d} {h}:{i}:{s}.{ms}] [{level}] {text}'
 
-// Redact sensitive fields from objects
 const SENSITIVE_KEYS = [
   'password',
   'license_key',
@@ -104,5 +99,4 @@ export function createLogger(module: string) {
 
 export type Logger = ReturnType<typeof createLogger>
 
-// Export the raw log instance for special cases (like uncaught exceptions)
 export { log }
