@@ -559,7 +559,7 @@ export function TelemetryPanel({
                   </div>
 
                   {/* Timeline track */}
-                  <div className="flex-1 relative h-5">
+                  <div className="flex-1 relative h-5 overflow-hidden">
                     {/* Background track with grid lines */}
                     <div className="absolute inset-0 bg-muted/30 rounded-sm overflow-hidden">
                       {/* Subtle vertical grid lines */}
@@ -584,13 +584,13 @@ export function TelemetryPanel({
                         'min-w-[4px]'
                       )}
                       style={{
-                        left: `${startPercent}%`,
-                        width: `${Math.max(widthPercent, 0.5)}%`
+                        left: `${Math.min(startPercent, 100)}%`,
+                        width: `${Math.min(Math.max(widthPercent, 0.5), 100 - startPercent)}%`
                       }}
                     >
                       {/* Duration label inside bar if wide enough */}
                       {widthPercent > 8 && (
-                        <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
                           <span className="font-mono text-[10px] font-medium text-white/90 drop-shadow-sm tabular-nums">
                             {formatDuration(duration)}
                           </span>
@@ -599,7 +599,7 @@ export function TelemetryPanel({
                     </div>
 
                     {/* Duration label outside bar if too narrow */}
-                    {widthPercent <= 8 && (
+                    {widthPercent <= 8 && startPercent + widthPercent < 85 && (
                       <div
                         className="absolute top-0 bottom-0 flex items-center pl-1"
                         style={{ left: `${startPercent + widthPercent}%` }}
