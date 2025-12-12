@@ -65,6 +65,21 @@ export const Route = createRootRoute({
         defer: true,
         'data-website-id': '99144076-001c-49ad-82d9-a7a19fd7d700',
       },
+      {
+        children: `(function(c,l,a,r,i,t,y){
+          c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+          t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+          y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", "ukb6oie3zz");`,
+      },
+      {
+        src: 'https://cdn.littlestats.click/embed/wq9151m57h17nmx',
+        defer: true,
+      },
+      {
+        src: 'https://scripts.simpleanalyticscdn.com/latest.js',
+        async: true,
+      },
     ],
   }),
   component: RootComponent,
